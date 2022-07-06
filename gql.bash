@@ -10,9 +10,9 @@ function gql
     local GQL_URL="${GQL_URL}" 
     local GQL_PROFILE="${GQL_PROFILE}"
     local GQL_LOG_LEVEL="${GQL_LOG_LEVEL:-0}"
-    local dry_run
+    local dry_run gql
     
-    while getopts 'du:p:qmsO:n' OPT
+    while getopts 'dDu:p:qmsO:nG:S' OPT
     do
         case "$OPT" in
         d) GQL_LOG_LEVEL=-2;;
@@ -23,6 +23,9 @@ function gql
         u) GQL_URL="$OPTARG";;
         p) GQL_PROFILE="$OPTARG";;
         n) dry_run=1;;
+        G) gql="$OPTARG";;
+        S) op='schema';;
+        D) dry_run=doc;;
         esac
     done
     shift $(( OPTIND - 1 ))
@@ -37,17 +40,29 @@ function gql
     
     case "$op" in
         query|mutation|subscription)
-        
-            local -A _gql_doc
-            gql.build _gql_doc "$op" data "$@"
-            gql.format _gql_doc query |
-            tee /dev/stderr |
-            if [ "$dry_run" ]
-            then
-                cat -
-            else
-                gql.agent "$GQL_URL" 
-            fi
+            {
+                local -A _gql_doc
+                if [ ! "$gql" ]
+                then
+                    gql.build _gql_doc "$op" data "$@"
+                    gql=$( gql.format _gql_doc "$op" )
+                fi
+                if [ "$dry_run" = doc ]
+                then
+                    declare -p _gql_doc
+                elif [ "$dry_run" ]
+                then
+                    echo "$gql"
+                else
+                    echo "$gql" | 
+                        gql.agent "$GQL_URL" | 
+                        gql.output-doc _gql_doc "$op"
+                fi
+            }                
+            ;;
+            
+        schema)
+            gql.schema | jq . 
             ;;
             
         *)
@@ -55,6 +70,16 @@ function gql
             ;;
     esac
 }
+
+##############################################################################
+##############################################################################
+
+function gql.query
+{
+    local -A _gql_doc
+    gql.build _gql_doc "$op" data "$@"
+    gql.format _gql_doc query | gql.agent "$GQL_URL"
+}    
 
 ##############################################################################
 ##############################################################################
@@ -75,7 +100,9 @@ function _gql_build
 {
     local docpath="$1"; shift || _gql_required 'gql document path'
     local datapath="$1"; shift || _gql_required 'gql result data path'
-    local buildpath="${1:-$docpath}"
+    local buildpath="${1:-$docpath}"; shift
+    local builddata="${1:-$datapath}"; shift
+    _doc["${docpath}:datapath"]="$datapath"
     
     # These two references will be based on the value of $buildpath upon use.
     local -n paramstr='_doc[$buildpath:paramstr]'
@@ -89,7 +116,7 @@ function _gql_build
         case "$arg" in
         '{')
             _idx+=1
-            _gql_build "$buildpath" "$buildpath"
+            _gql_build "$buildpath" "$builddata"
             ;;
             
         '}')
@@ -127,6 +154,7 @@ function _gql_build
                     fi
                 else
                     buildpath="$docpath"
+                    builddata="$datapath"
                     while true
                     do
                         suffix="${arg#*.}"
@@ -141,14 +169,18 @@ function _gql_build
                                     fields+="${fields:+ }$node"
                                 fi                                    
                                 buildpath+=".$node"
+                                builddata+=".$node"
                                 _doc["$buildpath:node"]="$node"
                                 arg="$suffix"
                             }
                         fi
                     done
+                    
                     fields+="${fields:+ }$arg"
                     _doc["$buildpath.$arg:node"]="$arg"
-                    buildpath="$buildpath.$arg"
+                    buildpath+=".$arg"
+                    builddata+=".$arg"
+                    _doc["${buildpath}:datapath"]="$builddata"
                 fi
             }                
             ;;
@@ -228,13 +260,77 @@ function gql.agent.curl
     {
         "query": $gql
     }' |
-    curl \
+    curl -s \
         -X POST \
         -H 'Content-Type: application/json' \
         -H 'Accept: application/json' \
         --data-binary @- \
         "$url"
 }
+
+##############################################################################
+##############################################################################
+
+function gql.output
+{
+    if [ $# -gt 1 ]
+    then
+        _gql_debug_cmd "gql.output.${GQL_OUTPUT:-jq}" "$@"
+    elif [ -t 1 ]
+    then
+        jq .
+    else
+        cat -
+    fi        
+}
+
+function gql.output-doc
+{
+    local -n _doc="$1"; shift || _gql_required 'gql parsed document'
+    local docpath="$1"; shift || _gql_required 'gql root path'
+    local -a _outputs
+    
+    _gql_outputs_from_doc "$docpath"
+    
+    gql.output "${_outputs[@]}"
+}
+
+function _gql_outputs_from_doc
+{
+    local path="$1"; shift || _gql_required 'document path'
+    
+    local fields="${_doc[$path:fields]}"
+    if [ "$fields" ]
+    then
+        local field
+        for field in $fields
+        do
+            _gql_outputs_from_doc "$path.$field"
+        done
+    else
+        _outputs+=( ".${_doc["$path":datapath]}" )
+    fi
+}
+
+##############################################################################
+
+function gql.output.jq
+{
+    local jqexpr
+    _gql_make_jql "$@"
+    
+    jq "($jqexpr)"
+}
+
+function _gql_make_jql
+{
+    local term
+    
+    for term in "$@"
+    do
+        jqexpr+="${jqexpr:+,}$term"
+    done
+}    
 
 ##############################################################################
 ##############################################################################
@@ -246,7 +342,7 @@ function _gql_log
     then
         if [ $# -gt 0 ]
         then
-            echo "$@"
+            echo -e "$@"
         else
             cat -
         fi >&2
@@ -283,6 +379,14 @@ function _gql_dump
     done | _gql_debug_raw
 }
 
+function _gql_debug_cmd
+{
+    _gql_debug "Running:\n    ${@@Q}"
+    "$@"; local rv=$?
+    _gql_debug "    ... returned $rv"
+    return $rv
+}
+
 ##############################################################################
 
 function _gql_internal_error
@@ -312,6 +416,102 @@ function _gql_copy_dict
     do
         dest["$key"]="${src[$key]}"
     done
+}
+
+##############################################################################
+##############################################################################
+
+function gql.schema
+{
+    echo '
+    fragment FullType on __Type {
+      kind
+      name
+      fields(includeDeprecated: true) {
+        name
+        args {
+          ...InputValue
+        }
+        type {
+          ...TypeRef
+        }
+        isDeprecated
+        deprecationReason
+      }
+      inputFields {
+        ...InputValue
+      }
+      interfaces {
+        ...TypeRef
+      }
+      enumValues(includeDeprecated: true) {
+        name
+        isDeprecated
+        deprecationReason
+      }
+      possibleTypes {
+        ...TypeRef
+      }
+    }
+    fragment InputValue on __InputValue {
+      name
+      type {
+        ...TypeRef
+      }
+      defaultValue
+    }
+    fragment TypeRef on __Type {
+      kind
+      name
+      ofType {
+        kind
+        name
+        ofType {
+          kind
+          name
+          ofType {
+            kind
+            name
+            ofType {
+              kind
+              name
+              ofType {
+                kind
+                name
+                ofType {
+                  kind
+                  name
+                  ofType {
+                    kind
+                    name
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    query IntrospectionQuery {
+      __schema {
+        queryType {
+          name
+        }
+        mutationType {
+          name
+        }
+        types {
+          ...FullType
+        }
+        directives {
+          name
+          locations
+          args {
+            ...InputValue
+          }
+        }
+      }
+    }' | gql.agent
 }
 
 ##############################################################################
