@@ -114,12 +114,16 @@ function _gql_build
     do
         local arg="${_args[$_idx]}"
         case "$arg" in
+        '[')
+            _doc["${buildpath}:mode"]=table
+            ;&
+            
         '{')
             _idx+=1
             _gql_build "$buildpath" "$builddata"
             ;;
             
-        '}')
+        '}' | ']')
             _idx+=1
             return
             ;;
@@ -233,7 +237,15 @@ function _gql_format
 
 function gql.agent
 {
-    "${GQL_AGENT:-gql.agent.curl}" "$@"
+    "${GQL_AGENT:-gql.agent.curl}" "$@" |
+        jq '
+            if has("errors")
+            then
+                ( .errors[] | [ error(.message) ] )
+            else
+                ( . )
+            end                
+        '
 }
 
 function gql.agent.curl
@@ -298,6 +310,16 @@ function gql.output-doc
 function _gql_outputs_from_doc
 {
     local path="$1"; shift || _gql_required 'document path'
+    local prefix="$1"
+    
+    local mode="${_doc[$path:mode]}"
+    local datapath="${_doc[$path:datapath]}"
+    
+    if [ "$mode" = 'table' ]
+    then
+        _outputs+=( ".$datapath[" )
+        prefix="$datapath."
+    fi
     
     local fields="${_doc[$path:fields]}"
     if [ "$fields" ]
@@ -305,11 +327,17 @@ function _gql_outputs_from_doc
         local field
         for field in $fields
         do
-            _gql_outputs_from_doc "$path.$field"
+            _gql_outputs_from_doc "$path.$field" "$prefix"
         done
     else
-        _outputs+=( ".${_doc["$path":datapath]}" )
+        _outputs+=( ".${datapath#$prefix}" )
     fi
+    
+    if [ "$mode" = 'table' ]
+    then
+        _outputs+=( ']' )
+    fi
+    
 }
 
 ##############################################################################
@@ -318,19 +346,31 @@ function gql.output.jq
 {
     local jqexpr
     _gql_make_jql "$@"
+    _gql_dump jqexpr
     
-    jq "($jqexpr)"
+    jq -r "($jqexpr)"
 }
 
 function _gql_make_jql
 {
-    local term
+    local term comma
     
     for term in "$@"
     do
-        jqexpr+="${jqexpr:+,}$term"
+        if [ "${term%[}" != "$term" ]
+        then
+            jqexpr+="$comma($term]|["
+            comma=
+        elif [ "$term" = ']' ]
+        then
+            jqexpr+=']|@tsv)'
+            comma=,
+        else
+            jqexpr+="$comma$term"
+            comma=,
+        fi            
     done
-}    
+}
 
 ##############################################################################
 ##############################################################################
@@ -381,9 +421,9 @@ function _gql_dump
 
 function _gql_debug_cmd
 {
-    _gql_debug "Running:\n    ${@@Q}"
+    _gql_debug_raw "Running:\n    ${@@Q}"
     "$@"; local rv=$?
-    _gql_debug "    ... returned $rv"
+    _gql_debug_raw "    ... returned $rv"
     return $rv
 }
 
