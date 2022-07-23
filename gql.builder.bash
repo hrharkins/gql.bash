@@ -72,20 +72,27 @@ function _gql_build_params
             break
         fi
         
-        value="${arg#*=}"
-        if [ "$value" = "$arg" ]
+        name="${arg%%:*}"
+        if [ "$name" != "$arg" -a "${name#*=}" = "$name" ]
         then
             value="${arg#*:}"
-            if [ ! "$value" -o "$value" = "$arg" ]
+            if [ ! "$value" ]
+            then
+                break
+            elif [ "${value#=}" != "$value" ]
+            then
+                value="\$${value#=}"
+            fi
+        else
+            value="${arg#*=}"
+            if [ "$value" = "$arg" ]
             then
                 break
             else
-                name="${arg%%:*}"
-            fi                
-        else
-            name="${arg%%=*}"
-            value="\"$value\""
-        fi
+                name="${arg%%=*}"
+                value="\"$value\""
+            fi
+        fi            
         
         params+="${params+ }$name"
         _doc["$path":"$name"]="$value"

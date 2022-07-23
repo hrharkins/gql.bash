@@ -64,7 +64,7 @@ function gql:log
         else
             printf -- "${GQL_LOG_PFEFIX:-}$msg\n" "$@" >&2
         fi            
-    fi
+    fi >&2
 }
 
 function gql:log-level
@@ -95,7 +95,7 @@ function gql:verbose    { gql:log VERBOSE "$@"; }
 
 function gql:fatal
 {
-    local GQL_LOG_CONTEXT="${GQL_LOG_CONTEXT:-$(caller 1)}"
+    #local GQL_LOG_CONTEXT="${GQL_LOG_CONTEXT:-$(caller 1)}"
     local message="$1"; shift || gql:required 'fatal message'
     gql:log ALWAYS "$message" "$@"
     exit "${GQL[log:"$message":exit]:-${GQL[exit:general]}}"

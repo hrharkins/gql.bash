@@ -17,5 +17,5 @@ function gql:agent:curl
     
     [ "$url" ] || gql:required url 'GraphQL URL to access'
     
-    curl -X POST --data-binary @- -H 'Content-Type: application/json' "$url"
+    curl -s -X POST --data-binary @- -H 'Content-Type: application/json' "$url"
 }

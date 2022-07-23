@@ -14,7 +14,7 @@ GQL[gql:dir]="$(dirname "${GQL[gql:core]}")"
 function gql:main
 {
     set -eu
-    trap gql:traceback ERR
+    #trap gql:traceback ERR
     
     local OPTIND OPTARG OPT
     local -n GQL="${!GQL}"
@@ -32,7 +32,8 @@ function gql:main
         H) GQL[host]="$OPTARG";;
         U) GQL[url]="$OPTARG";;
         m) op=mutation;;
-        V) GQL[vars]+="${GQL[vars]+ }$OPTARG"
+        V) GQL[vars]+="${GQL[vars]+ }$OPTARG";;
+        ?) exit 65;;
         esac 
     done
     
@@ -40,8 +41,13 @@ function gql:main
     
     shift $(( OPTIND - 1 ))
     
-    local op="$1"; shift || gql:usage "Operation is required"
-    "gql:op:$op" "$@"
+    local op="${1:-}"; shift || gql:usage "Operation is required"
+    if declare -F "gql:op:$op" >/dev/null
+    then
+        "gql:op:$op" "$@"
+    else
+        gql:fatal invalid-operation "$op"
+    fi
 }
 
 ##############################################################################
@@ -84,7 +90,7 @@ function gql:use
             gql:fatal use-export-failed "$modname" "$fn"
         else
             local _GQL_USE_FN="$fn"
-            "$fn" "$@"
+            "$fn" "$@"; return $?
         fi
     fi
 }
@@ -96,6 +102,7 @@ GQL[module:gql.query:source]="./gql.query.bash"
 function gql:op:query                   { gql:use gql.query - "$@"; }
 function gql:op:mutation                { gql:use gql.query - "$@"; }
 function gql:op:do                      { gql:use gql.query - "$@"; }
+function gql:op:spool                   { gql:use gql.query - "$@"; }
 
 ##############################################################################
 ##############################################################################
@@ -131,6 +138,14 @@ function gql:verbose                    { gql:use gql.log - "$@"; }
 function gql:debug                      { gql:use gql.log - "$@"; }
 function gql:trace                      { gql:use gql.log - "$@"; }
 function gql:traceback                  { gql:use gql.log - "$@"; }
+
+##############################################################################
+##############################################################################
+
+GQL[module:gql.help:source]="./gql.help.bash"
+function gql:op:modules                 { gql:use gql.help - "$@"; }
+function gql:op:help                    { gql:use gql.help - "$@"; }
+function gql:usage                      { gql:use gql.help - "$@"; }
 
 ##############################################################################
 ##############################################################################
