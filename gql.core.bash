@@ -22,10 +22,13 @@ function gql:main
     
     gql:merge-config GQL_MAIN GQL
     local -n GQL=GQL_MAIN
+
+    gql:load-config "$GQL_DIR/gql-config.bash"
+    gql:load-config "$HOME/gql-config.bash"
     
     local name value
     
-    while getopts 'C:H:U:V:' OPT
+    while getopts 'C:H:U:V:P:' OPT
     do
         case "$OPT" in
         C) gql:merge-config GQL_MAIN "$OPTARG";;
@@ -33,11 +36,13 @@ function gql:main
         U) GQL[url]="$OPTARG";;
         m) op=mutation;;
         V) GQL[vars]+="${GQL[vars]+ }$OPTARG";;
+        P) GQL[profile]="$OPTARG";;
         ?) exit 65;;
         esac 
     done
     
     : "${GQL[url]:=${GQL_URL:-}}"
+    : "${GQL[profile]:=${GQL_PROFILE:-}}"
     
     shift $(( OPTIND - 1 ))
     
@@ -152,6 +157,8 @@ function gql:usage                      { gql:use gql.help - "$@"; }
 
 GQL[module:gql.config:source]="./gql.config.bash"
 function gql:merge-config              { gql:use gql.config - "$@"; }
+function gql:load-config               { gql:use gql.config - "$@"; }
+function gql:get-config                { gql:use gql.config - "$@"; }
 
 ##############################################################################
 ##############################################################################

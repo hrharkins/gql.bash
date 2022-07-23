@@ -5,7 +5,9 @@
 function gql:agent:curl
 {
     local OPTIND OPTARG OPTARG
-    local url="${GQL[url]:-}"
+    #local url="${GQL[url]:-${GQL[profile:${GQL[profile]:-}:url]:-}}"
+    local url
+    gql:get-config url
     
     while getopts 'u:' OPT
     do
