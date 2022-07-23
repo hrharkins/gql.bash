@@ -127,3 +127,11 @@ function gql:dump
     local GQL_LOG_CONTEXT="$(caller 0)"
     declare -p "$@" | gql:log ALWAYS -
 }
+
+##############################################################################
+
+function gql:traceback
+{
+    local -i depth=0
+    echo here
+}
