@@ -71,7 +71,9 @@ function gql:use
     
     if [ ! "$modulr" ]
     then
-        local source="${GQL[module:$modname:source]}"
+        local source="${GQL[module:$modname:source]:-}"
+        [ "$source" ] || gql:fatal module-not-found "$modname"
+        
         declare -A "GQL_MODULE_$(( ++GQL[id:last] ))"
         local -n GQL_MODULE="GQL_MODULE_${GQL[id:last]}"
         GQL_MODULE[module:name]="$modname"
@@ -108,6 +110,7 @@ function gql:op:query                   { gql:use gql.query - "$@"; }
 function gql:op:mutation                { gql:use gql.query - "$@"; }
 function gql:op:do                      { gql:use gql.query - "$@"; }
 function gql:op:spool                   { gql:use gql.query - "$@"; }
+function gql:do                         { gql:use gql.query - "$@"; }
 
 ##############################################################################
 ##############################################################################
@@ -150,6 +153,8 @@ function gql:traceback                  { gql:use gql.log - "$@"; }
 GQL[module:gql.help:source]="./gql.help.bash"
 function gql:op:modules                 { gql:use gql.help - "$@"; }
 function gql:op:help                    { gql:use gql.help - "$@"; }
+function gql:op:complete                { gql:use gql.help - "$@"; }
+function gql:op:operations              { gql:use gql.help - "$@"; }
 function gql:usage                      { gql:use gql.help - "$@"; }
 
 ##############################################################################

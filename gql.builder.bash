@@ -149,12 +149,16 @@ function _gql_build_selectors
     do
         arg="${args[$argidx]}"
         case "$arg" in
+        '[')
+            _doc["$target:output"]='table'
+            ;&
+            
         '{')
             (( ++argidx ))
             _gql_build_selectors "${!_doc}" "$target"
             ;;
             
-        '}')
+        '}' | ']')
             (( ++argidx ))
             break
             ;;
@@ -186,17 +190,25 @@ function _gql_build_selectors
                 prefix="${arg%%.*}"
             done
             
-            selectors+="${selectors:+ }$arg"
+            if [ ! "${_doc[$target.$arg:name]:+_}" ]
+            then
+                selectors+="${selectors:+ }$arg"
+            fi                
             target+=".$arg"
             _doc["$target:name"]="$arg"
             _gql_build_params "${!_doc}" "$target:args"
             _gql_build_directives "${!_doc}" "$target:directives"
-            if [ "${args[$argidx]:-}" = '{' ]
-            then
+            
+            case "${args[$argidx]:-}" in
+            '[')
+                _doc["$target:output"]='table'
+                ;&
+            
+            '{')
                 (( ++argidx ))
                 _gql_build_selectors "${!_doc}" "$target"
                 target="$path"
-            fi
+            esac
             ;;
         esac
     done
