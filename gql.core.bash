@@ -105,36 +105,44 @@ function gql:use
 ##############################################################################
 ##############################################################################
 
-GQL[module:gql.query:source]="./gql.query.bash"
-function gql:op:query                   { gql:use gql.query - "$@"; }
-function gql:op:mutation                { gql:use gql.query - "$@"; }
-function gql:op:do                      { gql:use gql.query - "$@"; }
-function gql:op:spool                   { gql:use gql.query - "$@"; }
-function gql:do                         { gql:use gql.query - "$@"; }
+function gql:op:debug
+{
+    gql:use "$@"
+}
 
 ##############################################################################
 ##############################################################################
 
-GQL[module:gql.builder:source]="./gql.builder.bash"
+GQL[module:gql.agent:source]="./agent/gql.agent.bash"
+function gql:op:query                   { gql:use gql.agent - "$@"; }
+function gql:op:mutation                { gql:use gql.agent - "$@"; }
+function gql:op:do                      { gql:use gql.agent - "$@"; }
+function gql:op:spool                   { gql:use gql.agent - "$@"; }
+function gql:do                         { gql:use gql.agent - "$@"; }
+
+##############################################################################
+##############################################################################
+
+GQL[module:gql.builder:source]="./graphql/gql.builder.bash"
 function gql:build-document             { gql:use gql.builder - "$@"; }
 function gql:op:print                   { gql:use gql.builder - "$@"; }
 
 ##############################################################################
 ##############################################################################
 
-GQL[module:gql.curl:source]="./gql.curl.bash"
+GQL[module:gql.curl:source]="./agent/gql.curl.bash"
 function gql:agent:curl                 { gql:use gql.curl - "$@"; }
 
 ##############################################################################
 ##############################################################################
 
-GQL[module:gql.format:source]="./gql.format.bash"
+GQL[module:gql.format:source]="./graphql/gql.format.bash"
 function gql:format-document            { gql:use gql.format - "$@"; }
 
 ##############################################################################
 ##############################################################################
 
-GQL[module:gql.log:source]="./gql.log.bash"
+GQL[module:gql.log:source]="./util/gql.log.bash"
 function gql:log                        { gql:use gql.log - "$@"; }
 function gql:dump                       { gql:use gql.log - "$@"; }
 function gql:alert                      { gql:use gql.log - "$@"; }
@@ -150,7 +158,15 @@ function gql:traceback                  { gql:use gql.log - "$@"; }
 ##############################################################################
 ##############################################################################
 
-GQL[module:gql.help:source]="./gql.help.bash"
+GQL[module:gql.schema:source]="./graphql/gql.schema.bash"
+function gql:op:types                   { gql:use gql.schema - "$@"; }
+function gql:type-list                  { gql:use gql.schema - "$@"; }
+function gql:name-list                  { gql:use gql.schema - "$@"; }
+
+##############################################################################
+##############################################################################
+
+GQL[module:gql.help:source]="./util/gql.help.bash"
 function gql:op:modules                 { gql:use gql.help - "$@"; }
 function gql:op:help                    { gql:use gql.help - "$@"; }
 function gql:op:complete                { gql:use gql.help - "$@"; }
@@ -160,7 +176,7 @@ function gql:usage                      { gql:use gql.help - "$@"; }
 ##############################################################################
 ##############################################################################
 
-GQL[module:gql.config:source]="./gql.config.bash"
+GQL[module:gql.config:source]="./util/gql.config.bash"
 function gql:merge-config              { gql:use gql.config - "$@"; }
 function gql:load-config               { gql:use gql.config - "$@"; }
 function gql:get-config                { gql:use gql.config - "$@"; }
