@@ -162,15 +162,14 @@ GQL[module:gql.schema:source]="./graphql/gql.schema.bash"
 function gql:op:types                   { gql:use gql.schema - "$@"; }
 function gql:type-list                  { gql:use gql.schema - "$@"; }
 function gql:name-list                  { gql:use gql.schema - "$@"; }
+function gql:types                      { gql:use gql.schema - "$@"; }
 
 ##############################################################################
 ##############################################################################
 
 GQL[module:gql.help:source]="./util/gql.help.bash"
-function gql:op:modules                 { gql:use gql.help - "$@"; }
 function gql:op:help                    { gql:use gql.help - "$@"; }
 function gql:op:complete                { gql:use gql.help - "$@"; }
-function gql:op:operations              { gql:use gql.help - "$@"; }
 function gql:usage                      { gql:use gql.help - "$@"; }
 
 ##############################################################################

@@ -18,16 +18,17 @@ function gql:build-document
     local -n _doc="$1"; shift \
         || gql:requiree doc 'Destination document variable'
     local op="$1"; shift || gql.required operation "GraphQL operation"
-    local name=''
+    local name='' _lastpath lastpath_var
     
     local OPTIND OPTARG OPT
     local print= dump=
-    while getopts 'n:pd' OPT
+    while getopts 'n:pdL:' OPT
     do
         case "$OPT" in
         n) name="$OPTARG";;
         p) print=1;;
         d) dump=1;;
+        L) lastpath_var="$OPTARG";;
         esac
     done
     shift $(( OPTIND - 1 ))
@@ -49,6 +50,12 @@ function gql:build-document
     if [ "$print" ]
     then
         gql:format-document "${!_doc}"
+    fi
+    
+    if [ "${lastpath_var:-}" ]
+    then
+        local -n lastpath_ref="$lastpath_var"
+        lastpath_ref="$op$_lastpath"
     fi
 }
 
@@ -143,6 +150,7 @@ function _gql_build_selectors
     local target="$path"
     local -n selectors='_doc[$target:selectors]'
     local prefix
+    _lastpath="$path"
     
     local arg
     while [ $argidx -lt $nargs ]
@@ -164,6 +172,7 @@ function _gql_build_selectors
             ;;
             
         *)
+            _lastpath="$path.$arg"
             (( ++argidx ))
             prefix="${arg%%.*}"
             if [ "$prefix" ]
