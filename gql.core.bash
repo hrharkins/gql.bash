@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 declare GQL_CORE="$(readlink -f "${BASH_SOURCE[0]}")" 
-declare GQL_DIR="$(dirname "$GQL_SCRIPT")"
+declare GQL_DIR="$(dirname "$GQL_CORE")"
 declare -n GQL=GQL_GLOBAL
 declare -i GQL_LAST_ID=0
 declare -A GQL_GLOBAL
@@ -159,6 +159,7 @@ function gql:traceback                  { gql:use gql.log - "$@"; }
 ##############################################################################
 
 GQL[module:gql.schema:source]="./graphql/gql.schema.bash"
+function gql:op:schema                  { gql:use gql.schema - "$@"; }
 function gql:op:types                   { gql:use gql.schema - "$@"; }
 function gql:type-list                  { gql:use gql.schema - "$@"; }
 function gql:name-list                  { gql:use gql.schema - "$@"; }

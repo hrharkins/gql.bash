@@ -113,6 +113,61 @@ function gql:paths
 ##############################################################################
 ##############################################################################
 
+function gql:op:schema
+{
+    local -A schema
+    gql:load-schema schema
+    gql:dump schema
+}    
+
+##############################################################################
+
+function gql:schema-json
+{
+    gql:do '
+        {
+            __schema
+            {
+                queryType { name }
+                mutationType { name }
+                subscriptionType { name }
+                types
+                {
+                    name
+                    fields { name type { kind name ofType { kind name } } }
+                    inputFields { name }
+                    interfaces { name }
+                    possibleTypes { name }
+                }
+            }
+        }
+    '
+}
+
+##############################################################################
+
+function gql:schema-vars
+{
+    gql:schema-json |
+    jq -rf "$GQL_DIR/graphql/schema-to-bash-array.jq"
+}
+
+##############################################################################
+
+function gql:load-schema
+{
+    local -n _schema="$1"; shift || gql:required schema 'Destination variable'
+    local key value
+    
+    while read key value;
+    do
+        _schema["$key"]="$value"
+    done < <( gql:schema-vars )
+}
+
+##############################################################################
+##############################################################################
+
 function gql:types
 {
     local -n dest="$1"; shift || gql:required 'Destination variable'
@@ -135,6 +190,7 @@ function gql:types
                     {
                         name
                         fields { name type { kind name } }
+                        __inputFields { name 
                     }
                 }
             }

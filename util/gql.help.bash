@@ -91,7 +91,7 @@ function gql:complete:main
         return;;
     
     1)
-        gql:help:operations 
+        gql:help:operations | while read op; do echo "$op "; done
         ;;
         
     *)        
@@ -109,17 +109,19 @@ function gql:complete:main
 
 function gql:complete:op:query
 {
-    local -A doc types
-    gql:types types
+    local -A doc 
     local lastpath subpath
     gql:build-document doc query -L lastpath "$@"
     
-    local type=/
+    declare -A schema
+    gql:use gql.schema gql:load-schema schema
+
+    local type=''
     local -a pathparts=( ${lastpath//./ } )
     unset pathparts[-1]
     for subpath in "${pathparts[@]}"
     do
-        type="${types[$type:$subpath]:-}"
+        type="${schema[$type/$subpath]:-}"
         if [ ! "$type" ]
         then
             return
@@ -127,13 +129,11 @@ function gql:complete:op:query
     done
     
     local key
-    for key in "${!types[@]}"
+    local -a selectors=( ${schema["$type"]} )
+    for key in "${selectors[@]}"
     do
-        if [ "${key#$type:}" != "$key" ]
-        then
-            echo "${key#$type:}"
-        fi
+        echo "$key."
     done
     
-    echo '{'
+    # echo '{'
 }
